@@ -1,0 +1,329 @@
+// PeleAnálise — Prisma Schema
+// MySQL · Soft Delete · Audit Trail · Multi-role RBAC
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum RoleType {
+  ADMIN
+  DOCTOR
+  CAPTURISTA
+}
+
+enum Sex {
+  MASCULINO
+  FEMENINO
+  OTRO
+}
+
+enum LesionType {
+  MELANOMA
+  NEVUS
+  CARCINOMA_BASOCELULAR
+  CARCINOMA_ESPINOCELULAR
+  QUERATOSIS_ACTINCA
+  DERMATOFIBROMA
+  LESION_VASCULAR
+  OTRO
+}
+
+enum RiskLevel {
+  BENIGNO
+  SOSPECHOSO
+  MALIGNO
+}
+
+enum AuditAction {
+  CREATE
+  READ
+  UPDATE
+  DELETE
+  LOGIN
+  LOGOUT
+  EXPORT
+  ANALYZE
+}
+
+// ─── User & Auth ──────────────────────────────────────────────────────────────
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  password     String
+  firstName    String    @db.VarChar(100)
+  lastName     String    @db.VarChar(100)
+  role         RoleType  @default(CAPTURISTA)
+  isActive     Boolean   @default(true)
+  avatarUrl    String?   @db.VarChar(500)
+  lastLoginAt  DateTime?
+  deletedAt    DateTime?
+
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  // Relations
+  refreshTokens  RefreshToken[]
+  medicalRecords MedicalRecord[]
+  studies        Study[]
+  auditLogs      AuditLog[]
+
+  @@index([email])
+  @@index([role])
+  @@index([deletedAt])
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique @db.VarChar(512)
+  userId    String
+  expiresAt DateTime
+  isRevoked Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@map("refresh_tokens")
+}
+
+// ─── Patient ──────────────────────────────────────────────────────────────────
+
+model Patient {
+  id            String    @id @default(uuid())
+  firstName     String    @db.VarChar(100)
+  lastName      String    @db.VarChar(100)
+  sex           Sex
+  birthDate     DateTime  @db.Date
+  curp          String?   @unique @db.VarChar(18)
+  phone         String?   @db.VarChar(20)
+  email         String?   @db.VarChar(255)
+  address       String?   @db.Text
+  observations  String?   @db.Text
+  isActive      Boolean   @default(true)
+  deletedAt     DateTime?
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  medicalRecords MedicalRecord[]
+  studies        Study[]
+
+  @@index([lastName, firstName])
+  @@index([curp])
+  @@index([deletedAt])
+  @@map("patients")
+}
+
+// ─── Medical Record ───────────────────────────────────────────────────────────
+
+model MedicalRecord {
+  id                  String    @id @default(uuid())
+  patientId           String
+  doctorId            String
+  consultationReason  String    @db.Text
+  preliminaryDiagnosis String?  @db.Text
+  observations        String?   @db.Text
+  consultationDate    DateTime  @default(now())
+  deletedAt           DateTime?
+
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  // Relations
+  patient Patient @relation(fields: [patientId], references: [id])
+  doctor  User    @relation(fields: [doctorId], references: [id])
+  studies Study[]
+
+  @@index([patientId])
+  @@index([doctorId])
+  @@index([consultationDate])
+  @@map("medical_records")
+}
+
+// ─── Study ────────────────────────────────────────────────────────────────────
+
+model Study {
+  id               String     @id @default(uuid())
+  patientId        String
+  recordId         String?
+  capturedById     String
+  studyDate        DateTime   @default(now())
+  lesionType       LesionType @default(OTRO)
+  anatomicLocation String     @db.VarChar(200)
+  clinicalComments String?    @db.Text
+  riskLevel        RiskLevel?
+  isProcessed      Boolean    @default(false)
+  deletedAt        DateTime?
+
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  // Relations
+  patient  Patient        @relation(fields: [patientId], references: [id])
+  record   MedicalRecord? @relation(fields: [recordId], references: [id])
+  capturedBy User         @relation(fields: [capturedById], references: [id])
+  images   Image[]
+  analysis Analysis?
+
+  @@index([patientId])
+  @@index([recordId])
+  @@index([studyDate])
+  @@index([riskLevel])
+  @@map("studies")
+}
+
+// ─── Image ────────────────────────────────────────────────────────────────────
+
+model Image {
+  id          String    @id @default(uuid())
+  studyId     String
+  type        ImageType @default(ORIGINAL)
+  filename    String    @db.VarChar(255)
+  storagePath String    @db.VarChar(500)
+  mimeType    String    @db.VarChar(50)
+  sizeBytes   Int
+  width       Int?
+  height      Int?
+  deletedAt   DateTime?
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  study Study @relation(fields: [studyId], references: [id])
+
+  @@index([studyId])
+  @@index([type])
+  @@map("images")
+}
+
+enum ImageType {
+  ORIGINAL
+  CLEANED
+  MASK
+  GRADCAM
+  OVERLAY
+}
+
+// ─── Analysis ─────────────────────────────────────────────────────────────────
+
+model Analysis {
+  id          String    @id @default(uuid())
+  studyId     String    @unique
+  processedAt DateTime  @default(now())
+  deletedAt   DateTime?
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  study      Study        @relation(fields: [studyId], references: [id])
+  abcde      ABCDEMetric?
+  prediction Prediction?
+
+  @@index([studyId])
+  @@map("analyses")
+}
+
+// ─── ABCDE Metrics ────────────────────────────────────────────────────────────
+
+model ABCDEMetric {
+  id           String  @id @default(uuid())
+  analysisId   String  @unique
+
+  // Asymmetry
+  asymmetryScore     Float
+  asymmetryH         Float
+  asymmetryV         Float
+  huMoments          Json
+
+  // Border
+  borderScore        Float
+  perimeter          Float
+  area               Float
+  compactness        Float
+  rugosity           Float
+
+  // Color
+  colorScore         Float
+  colorVariance      Float
+  meanR              Float
+  meanG              Float
+  meanB              Float
+  stdR               Float
+  stdG               Float
+  stdB               Float
+  colorHistogram     Json
+
+  // Diameter
+  diameterScore      Float
+  diameterPx         Float
+  diameterMm         Float
+  pixelPerMm         Float
+
+  // Evolution (placeholder for future tracking)
+  evolutionDelta     Float?
+
+  totalScore         Float
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  analysis Analysis @relation(fields: [analysisId], references: [id])
+
+  @@map("abcde_metrics")
+}
+
+// ─── AI Prediction ────────────────────────────────────────────────────────────
+
+model Prediction {
+  id              String    @id @default(uuid())
+  analysisId      String    @unique
+  prediction      RiskLevel
+  probability     Float
+  probBenigno     Float
+  probSospechoso  Float
+  probMaligno     Float
+  modelVersion    String    @db.VarChar(50)
+  gradcamPath     String?   @db.VarChar(500)
+  inferenceTimeMs Int?
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  analysis Analysis @relation(fields: [analysisId], references: [id])
+
+  @@map("predictions")
+}
+
+// ─── Audit Log ────────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id         String      @id @default(uuid())
+  userId     String?
+  action     AuditAction
+  resource   String      @db.VarChar(100)
+  resourceId String?     @db.VarChar(100)
+  metadata   Json?
+  ipAddress  String?     @db.VarChar(45)
+  userAgent  String?     @db.VarChar(500)
+  createdAt  DateTime    @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([action])
+  @@index([resource])
+  @@index([createdAt])
+  @@map("audit_logs")
+}

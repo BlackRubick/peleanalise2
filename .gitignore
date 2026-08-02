@@ -1,0 +1,21 @@
+# ── macOS ──────────────────────────────────────────────────────────────────────
+.DS_Store
+**/.DS_Store
+
+# ── Python ─────────────────────────────────────────────────────────────────────
+python-ai/venv/
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+
+# ── Node / Nuxt ────────────────────────────────────────────────────────────────
+frontend/node_modules/
+# .nuxt se regenera con `nuxt dev` y puede tener rutas absolutas de la máquina origen
+frontend/.nuxt/
+
+# ── Modelos de entrenamiento (artefactos intermedios, >100 MB cada uno) ────────
+# melanoma_classifier.keras SÍ se incluye — es el modelo de producción (74 MB)
+python-ai/models/melanoma_classifier_phase1.keras
+python-ai/models/melanoma_classifier_phase2.keras
+python-ai/models/melanoma_classifier_phase3.keras
+python-ai/models/custom_ckpt.keras

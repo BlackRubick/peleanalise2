@@ -1,0 +1,43 @@
+{
+  "name": "peleanalise-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "node dev-start.js",
+    "ia:train": "node ia-train.js",
+    "dev:nuxt": "nuxt dev",
+    "dev:api": "cd ../python-ai && python3 -m uvicorn app.main:app --reload --port 8000",
+    "build": "nuxt build",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:push": "prisma db push",
+    "db:seed": "tsx prisma/seed.ts",
+    "db:studio": "prisma studio"
+  },
+  "dependencies": {
+    "@nuxt/image": "^1.7.0",
+    "@pinia/nuxt": "^0.5.1",
+    "@prisma/client": "^5.14.0",
+    "@vueuse/nuxt": "^10.11.0",
+    "bcryptjs": "^2.4.3",
+    "chart.js": "^4.4.3",
+    "jose": "^5.4.0",
+    "nuxt": "^3.12.3",
+    "pinia": "^2.1.7",
+    "uuid": "^10.0.0",
+    "vue": "^3.4.31",
+    "vue-chartjs": "^5.3.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@nuxtjs/tailwindcss": "^6.12.0",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/uuid": "^10.0.0",
+    "concurrently": "^8.2.2",
+    "prisma": "^5.14.0",
+    "tsx": "^4.16.2",
+    "typescript": "^5.5.3"
+  }
+}

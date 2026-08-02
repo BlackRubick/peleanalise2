@@ -1,0 +1,14 @@
+fastapi
+uvicorn[standard]
+python-multipart
+httpx
+Pillow
+opencv-python-headless
+numpy
+tensorflow
+scipy
+reportlab
+python-dotenv
+pydantic
+pydantic-settings
+medmnist>=3.0.0

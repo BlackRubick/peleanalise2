@@ -1,0 +1,9 @@
+// Re-export all icon components for convenient import
+export { default as IconGrid }      from "./IconGrid.vue";
+export { default as IconUsers }     from "./IconUsers.vue";
+export { default as IconMicroscope } from "./IconMicroscope.vue";
+export { default as IconBrain }     from "./IconBrain.vue";
+export { default as IconDocument }  from "./IconDocument.vue";
+export { default as IconUserCog }   from "./IconUserCog.vue";
+export { default as IconShield }    from "./IconShield.vue";
+export { default as IconLogout }    from "./IconLogout.vue";
