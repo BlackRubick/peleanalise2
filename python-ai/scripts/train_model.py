@@ -23,8 +23,9 @@ import os
 try:
     import medmnist
 except ImportError:
+    import subprocess
     print("[setup] Instalando medmnist...")
-    os.system(f"{sys.executable} -m pip install 'medmnist>=3.0.0' -q")
+    subprocess.run([sys.executable, "-m", "pip", "install", "medmnist>=3.0.0", "-q"], check=True)
     import medmnist
 
 from pathlib import Path
