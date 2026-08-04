@@ -1,5 +1,5 @@
 """
-Professional PDF report generator using ReportLab — black & white design.
+Professional PDF report generator — black & white, properly aligned.
 """
 
 import io
@@ -16,113 +16,89 @@ from reportlab.platypus import (
     Image as RLImage, HRFlowable, KeepTogether,
 )
 
-BLACK      = colors.HexColor("#000000")
-DARK_GRAY  = colors.HexColor("#333333")
-MID_GRAY   = colors.HexColor("#666666")
-LIGHT_GRAY = colors.HexColor("#f2f2f2")
-RULE_GRAY  = colors.HexColor("#cccccc")
-WHITE      = colors.white
+# ── Paleta estricta B&W ────────────────────────────────────────────────────────
+C_BLACK      = colors.HexColor("#000000")
+C_DARK       = colors.HexColor("#1a1a1a")
+C_MID        = colors.HexColor("#555555")
+C_LIGHT_RULE = colors.HexColor("#cccccc")
+C_ROW_ALT    = colors.HexColor("#f4f4f4")
+C_ROW_TOTAL  = colors.HexColor("#e0e0e0")
+C_WHITE      = colors.white
 
-RISK_LABEL = {
-    "BENIGNO":    "BENIGNO",
-    "SOSPECHOSO": "SOSPECHOSO",
-    "MALIGNO":    "MALIGNO",
-}
-
-
-def _styles():
-    base = getSampleStyleSheet()
-
-    title = ParagraphStyle(
-        "RPTitle",
-        parent=base["Normal"],
-        fontName="Helvetica-Bold",
-        fontSize=20,
-        textColor=BLACK,
-        spaceAfter=2,
-    )
-    subtitle = ParagraphStyle(
-        "RPSubtitle",
-        parent=base["Normal"],
-        fontName="Helvetica",
-        fontSize=10,
-        textColor=MID_GRAY,
-        spaceAfter=0,
-    )
-    section = ParagraphStyle(
-        "RPSection",
-        parent=base["Normal"],
-        fontName="Helvetica-Bold",
-        fontSize=11,
-        textColor=BLACK,
-        spaceBefore=14,
-        spaceAfter=5,
-        borderPad=0,
-    )
-    label = ParagraphStyle(
-        "RPLabel",
-        parent=base["Normal"],
-        fontName="Helvetica",
-        fontSize=8,
-        textColor=MID_GRAY,
-    )
-    value = ParagraphStyle(
-        "RPValue",
-        parent=base["Normal"],
-        fontName="Helvetica-Bold",
-        fontSize=9,
-        textColor=BLACK,
-    )
-    normal = ParagraphStyle(
-        "RPNormal",
-        parent=base["Normal"],
-        fontName="Helvetica",
-        fontSize=9,
-        textColor=DARK_GRAY,
-    )
-    footer = ParagraphStyle(
-        "RPFooter",
-        parent=base["Normal"],
-        fontName="Helvetica",
-        fontSize=7,
-        textColor=MID_GRAY,
-    )
-    risk_big = ParagraphStyle(
-        "RPRisk",
-        parent=base["Normal"],
-        fontName="Helvetica-Bold",
-        fontSize=16,
-        textColor=BLACK,
-        spaceAfter=2,
-    )
-    return dict(
-        title=title, subtitle=subtitle, section=section,
-        label=label, value=value, normal=normal,
-        footer=footer, risk_big=risk_big,
-    )
+# ── Dimensiones ────────────────────────────────────────────────────────────────
+PAGE_W, PAGE_H = A4
+MARGIN  = 2.2 * cm
+CW      = PAGE_W - 2 * MARGIN          # ancho exacto del contenido
 
 
-def _section_rule(story, title_text, s):
-    story.append(Spacer(1, 0.2 * cm))
-    story.append(Paragraph(title_text.upper(), s["section"]))
-    story.append(HRFlowable(width="100%", color=RULE_GRAY, thickness=0.5, spaceAfter=6))
+def _make_styles():
+    b = getSampleStyleSheet()
+    def ps(name, **kw):
+        return ParagraphStyle(name, parent=b["Normal"], **kw)
+
+    return {
+        "title":    ps("T",  fontName="Helvetica-Bold",  fontSize=20, textColor=C_BLACK, spaceAfter=1),
+        "subtitle": ps("Su", fontName="Helvetica",       fontSize=9,  textColor=C_MID,   spaceAfter=0),
+        "sec_hdr":  ps("SH", fontName="Helvetica-Bold",  fontSize=9,  textColor=C_WHITE),
+        "label":    ps("L",  fontName="Helvetica",       fontSize=8,  textColor=C_MID),
+        "value":    ps("V",  fontName="Helvetica-Bold",  fontSize=9,  textColor=C_DARK),
+        "normal":   ps("N",  fontName="Helvetica",       fontSize=9,  textColor=C_DARK),
+        "risk":     ps("R",  fontName="Helvetica-Bold",  fontSize=18, textColor=C_BLACK),
+        "pct":      ps("P",  fontName="Helvetica-Bold",  fontSize=13, textColor=C_DARK),
+        "footer":   ps("F",  fontName="Helvetica",       fontSize=7,  textColor=C_MID),
+    }
 
 
-def _info_table(rows, s, col_widths=None):
-    """2-column label/value table."""
-    if col_widths is None:
-        col_widths = [3.5 * cm, 6 * cm, 3.5 * cm, 4 * cm]
-    data = [
-        [Paragraph(lbl1, s["label"]), Paragraph(val1, s["value"]),
-         Paragraph(lbl2, s["label"]), Paragraph(val2, s["value"])]
-        for lbl1, val1, lbl2, val2 in rows
-    ]
-    t = Table(data, colWidths=col_widths)
+def _section(story, title, st):
+    """Encabezado de sección: barra negra con texto blanco."""
+    t = Table(
+        [[Paragraph(title.upper(), st["sec_hdr"])]],
+        colWidths=[CW],
+    )
+    t.setStyle(TableStyle([
+        ("BACKGROUND",    (0, 0), (-1, -1), C_BLACK),
+        ("TOPPADDING",    (0, 0), (-1, -1), 5),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+        ("LEFTPADDING",   (0, 0), (-1, -1), 8),
+    ]))
+    story.append(Spacer(1, 0.35 * cm))
+    story.append(t)
+    story.append(Spacer(1, 0.15 * cm))
+
+
+def _data_table(rows_data, col_w, st):
+    """
+    rows_data: lista de [(lbl1, val1, lbl2, val2), ...]
+    Devuelve tabla alineada con CW exacto.
+    """
+    data = []
+    for row in rows_data:
+        if len(row) == 4:
+            lbl1, val1, lbl2, val2 = row
+            data.append([
+                Paragraph(lbl1, st["label"]),
+                Paragraph(str(val1), st["value"]),
+                Paragraph(lbl2, st["label"]),
+                Paragraph(str(val2), st["value"]),
+            ])
+        elif len(row) == 2:
+            lbl1, val1 = row
+            data.append([
+                Paragraph(lbl1, st["label"]),
+                Paragraph(str(val1), st["value"]),
+                Paragraph("", st["label"]),
+                Paragraph("", st["value"]),
+            ])
+
+    t = Table(data, colWidths=col_w)
     t.setStyle(TableStyle([
         ("VALIGN",        (0, 0), (-1, -1), "TOP"),
+        ("TOPPADDING",    (0, 0), (-1, -1), 4),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
-        ("TOPPADDING",    (0, 0), (-1, -1), 2),
-        ("LINEBELOW",     (0, 0), (-1, -1), 0.3, RULE_GRAY),
+        ("LEFTPADDING",   (0, 0), (-1, -1), 4),
+        ("RIGHTPADDING",  (0, 0), (-1, -1), 4),
+        ("LINEBELOW",     (0, 0), (-1, -1), 0.3, C_LIGHT_RULE),
+        ("ROWBACKGROUNDS",(0, 0), (-1, -1), [C_WHITE, C_ROW_ALT]),
     ]))
     return t
 
@@ -130,205 +106,217 @@ def _info_table(rows, s, col_widths=None):
 def generate_pdf(study_data: dict[str, Any], image_b64: dict[str, str]) -> bytes:
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
-        buffer,
-        pagesize=A4,
-        rightMargin=2.2 * cm,
-        leftMargin=2.2 * cm,
-        topMargin=2 * cm,
-        bottomMargin=2 * cm,
+        buffer, pagesize=A4,
+        rightMargin=MARGIN, leftMargin=MARGIN,
+        topMargin=2 * cm,   bottomMargin=2 * cm,
     )
-    s = _styles()
+    st    = _make_styles()
     story = []
 
-    # ── Header ──────────────────────────────────────────────────────────────────
-    story.append(Paragraph("PeleAnálise", s["title"]))
-    story.append(Paragraph("Reporte de Análisis Dermatológico", s["subtitle"]))
-    story.append(Spacer(1, 0.3 * cm))
-    story.append(HRFlowable(width="100%", color=BLACK, thickness=1.5, spaceAfter=4))
+    # Anchos de columna para tablas de 4 col (lbl‑val‑lbl‑val)
+    LBL_W = CW * 0.22
+    VAL_W = CW * 0.28
+    col4  = [LBL_W, VAL_W, LBL_W, VAL_W]   # suma = CW exacto
+
+    # ── Encabezado ───────────────────────────────────────────────────────────
+    story.append(Paragraph("PeleAnálise", st["title"]))
+    story.append(Paragraph("Reporte de Análisis Dermatológico", st["subtitle"]))
+    story.append(Spacer(1, 0.25 * cm))
+    story.append(HRFlowable(width="100%", color=C_BLACK, thickness=2, spaceAfter=3))
     story.append(Paragraph(
-        f"Fecha de generación: {datetime.now().strftime('%d/%m/%Y  %H:%M')}",
-        s["footer"],
+        f"Fecha de generación: {datetime.now().strftime('%d/%m/%Y   %H:%M  hrs')}",
+        st["footer"],
     ))
 
-    # ── Datos del paciente ───────────────────────────────────────────────────────
-    p = study_data.get("patient", {})
-    nombre = f"{p.get('firstName', '')} {p.get('lastName', '')}".strip() or "—"
-    nacimiento = str(p.get("birthDate", "—"))[:10]
-    sexo = str(p.get("sex", "—"))
-    curp = str(p.get("curp", "—"))
-    telefono = str(p.get("phone", "—"))
-    email = str(p.get("email", "—"))
+    # ── Paciente ─────────────────────────────────────────────────────────────
+    p      = study_data.get("patient", {})
+    nombre = f"{p.get('firstName','')  } {p.get('lastName','')}".strip() or "—"
 
-    _section_rule(story, "Datos del Paciente", s)
-    story.append(_info_table([
-        ("Nombre completo", nombre,       "Fecha de nacimiento", nacimiento),
-        ("Sexo",            sexo,         "CURP",                curp),
-        ("Teléfono",        telefono,     "Correo",              email),
-    ], s))
+    _section(story, "Datos del Paciente", st)
+    story.append(_data_table([
+        ("Nombre completo",    nombre,
+         "Fecha de nacimiento", str(p.get("birthDate","—"))[:10]),
+        ("Sexo",               str(p.get("sex","—")),
+         "CURP",               str(p.get("curp","—"))),
+        ("Teléfono",           str(p.get("phone","—")),
+         "Correo electrónico", str(p.get("email","—"))),
+    ], col4, st))
 
-    # ── Datos del estudio ───────────────────────────────────────────────────────
-    study_date = str(study_data.get("studyDate", ""))[:10]
-    location   = str(study_data.get("anatomicLocation", "—"))
-    lesion     = str(study_data.get("lesionType", "—"))
-    medico     = f"{study_data.get('capturedBy', {}).get('firstName', '')} {study_data.get('capturedBy', {}).get('lastName', '')}".strip() or "—"
-    comments   = str(study_data.get("clinicalComments", "—") or "—")
+    # ── Estudio ──────────────────────────────────────────────────────────────
+    medico = (
+        f"{study_data.get('capturedBy',{}).get('firstName','')} "
+        f"{study_data.get('capturedBy',{}).get('lastName','')}".strip() or "—"
+    )
+    _section(story, "Datos del Estudio", st)
+    story.append(_data_table([
+        ("Fecha del estudio",     str(study_data.get("studyDate",""))[:10],
+         "Localización anatómica", str(study_data.get("anatomicLocation","—"))),
+        ("Tipo de lesión",        str(study_data.get("lesionType","—")),
+         "Médico responsable",    medico),
+    ], col4, st))
 
-    _section_rule(story, "Datos del Estudio", s)
-    story.append(_info_table([
-        ("Fecha del estudio",  study_date, "Localización anatómica", location),
-        ("Tipo de lesión",     lesion,     "Médico responsable",     medico),
-    ], s))
-    story.append(Spacer(1, 0.2 * cm))
-    story.append(Paragraph("Comentarios clínicos:", s["label"]))
-    story.append(Paragraph(comments, s["normal"]))
+    comments = str(study_data.get("clinicalComments","") or "").strip()
+    if comments:
+        story.append(Spacer(1, 0.2 * cm))
+        story.append(Paragraph("Comentarios clínicos:", st["label"]))
+        story.append(Paragraph(comments, st["normal"]))
 
-    # ── Imágenes ────────────────────────────────────────────────────────────────
-    img_items = []
+    # ── Imágenes ─────────────────────────────────────────────────────────────
+    img_cells = []
     for img_type, b64 in image_b64.items():
         if not b64:
             continue
         try:
-            img_data = base64.b64decode(b64)
-            img_buf  = io.BytesIO(img_data)
-            img      = RLImage(img_buf, width=4.8 * cm, height=4.8 * cm)
-            label_p  = Paragraph(img_type.replace("_", " ").title(), s["label"])
-            img_items.append([img, label_p])
+            raw = base64.b64decode(b64)
+            img = RLImage(io.BytesIO(raw), width=4.5 * cm, height=4.5 * cm)
+            lbl = Paragraph(img_type.replace("_", " ").title(), st["label"])
+            img_cells.append((img, lbl))
         except Exception:
             pass
 
-    if img_items:
-        _section_rule(story, "Imágenes del Estudio", s)
-        n = min(len(img_items), 3)
-        row_imgs  = [cell[0] for cell in img_items[:n]]
-        row_lbls  = [cell[1] for cell in img_items[:n]]
-        pad = n
-        while len(row_imgs) < 3:
-            row_imgs.append(Paragraph("", s["label"]))
-            row_lbls.append(Paragraph("", s["label"]))
+    if img_cells:
+        _section(story, "Imágenes del Estudio", st)
+        n_cols  = 3
+        img_col = CW / n_cols
+        # Rellena hasta múltiplo de 3
+        while len(img_cells) % n_cols:
+            img_cells.append((Paragraph("", st["label"]), Paragraph("", st["label"])))
 
-        img_table = Table(
-            [row_imgs, row_lbls],
-            colWidths=[5.5 * cm, 5.5 * cm, 5.5 * cm],
-        )
-        img_table.setStyle(TableStyle([
-            ("ALIGN",          (0, 0), (-1, -1), "CENTER"),
-            ("VALIGN",         (0, 0), (-1, -1), "MIDDLE"),
-            ("BOTTOMPADDING",  (0, 0), (-1, -1), 4),
-            ("BOX",            (0, 0), (pad - 1, 0), 0.5, RULE_GRAY),
-        ]))
-        story.append(img_table)
+        for i in range(0, len(img_cells), n_cols):
+            chunk = img_cells[i:i + n_cols]
+            img_row = [c[0] for c in chunk]
+            lbl_row = [c[1] for c in chunk]
+            it = Table([img_row, lbl_row], colWidths=[img_col] * n_cols)
+            it.setStyle(TableStyle([
+                ("ALIGN",         (0, 0), (-1, -1), "CENTER"),
+                ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+                ("TOPPADDING",    (0, 0), (-1, -1), 4),
+                ("BOX",           (0, 0), (-1, -1), 0.4, C_LIGHT_RULE),
+                ("INNERGRID",     (0, 0), (-1, -1), 0.3, C_LIGHT_RULE),
+            ]))
+            story.append(it)
 
-    # ── ABCDE ───────────────────────────────────────────────────────────────────
+    # ── ABCDE ────────────────────────────────────────────────────────────────
     analysis = study_data.get("analysis", {})
     abcde    = analysis.get("abcde", {})
     if abcde:
-        _section_rule(story, "Análisis ABCDE", s)
+        _section(story, "Análisis ABCDE", st)
 
-        header_style = ParagraphStyle(
-            "TH", parent=s["value"], textColor=WHITE, fontSize=9,
-        )
+        # Anchos: criterio 35%, score 18%, detalles 47%
+        aw = [CW * 0.35, CW * 0.18, CW * 0.47]
+
+        def th(txt):
+            return Paragraph(txt, ParagraphStyle(
+                "ATH", parent=st["sec_hdr"], fontSize=8))
+
         rows = [
-            [Paragraph("Criterio",  header_style),
-             Paragraph("Score",     header_style),
-             Paragraph("Detalles",  header_style)],
+            [th("Criterio"), th("Score"), th("Detalles")],
             ["A — Asimetría",
-             f"{abcde.get('asymmetryScore', 0):.3f}",
-             f"Horizontal: {abcde.get('asymmetryH', 0):.3f}   Vertical: {abcde.get('asymmetryV', 0):.3f}"],
+             f"{abcde.get('asymmetryScore',0):.3f}",
+             f"Horizontal: {abcde.get('asymmetryH',0):.3f}   Vertical: {abcde.get('asymmetryV',0):.3f}"],
             ["B — Bordes",
-             f"{abcde.get('borderScore', 0):.3f}",
-             f"Compacidad: {abcde.get('compactness', 0):.3f}   Rugosidad: {abcde.get('rugosity', 0):.3f}"],
+             f"{abcde.get('borderScore',0):.3f}",
+             f"Compacidad: {abcde.get('compactness',0):.3f}   Rugosidad: {abcde.get('rugosity',0):.3f}"],
             ["C — Color",
-             f"{abcde.get('colorScore', 0):.3f}",
-             f"Varianza cromática: {abcde.get('colorVariance', 0):.3f}"],
+             f"{abcde.get('colorScore',0):.3f}",
+             f"Varianza cromática: {abcde.get('colorVariance',0):.3f}"],
             ["D — Diámetro",
-             f"{abcde.get('diameterMm', 0):.2f} mm",
-             f"Diámetro en píxeles: {abcde.get('diameterPx', 0):.1f}"],
+             f"{abcde.get('diameterMm',0):.2f} mm",
+             f"Diámetro en píxeles: {abcde.get('diameterPx',0):.1f}"],
             ["TOTAL",
-             f"{abcde.get('totalScore', 0):.3f}",
+             f"{abcde.get('totalScore',0):.3f}",
              ""],
         ]
 
-        t = Table(rows, colWidths=[5 * cm, 3 * cm, 9 * cm])
-        t.setStyle(TableStyle([
-            ("BACKGROUND",    (0, 0), (-1, 0),  BLACK),
-            ("TEXTCOLOR",     (0, 0), (-1, 0),  WHITE),
-            ("FONTNAME",      (0, 0), (-1, 0),  "Helvetica-Bold"),
+        at = Table(rows, colWidths=aw)
+        at.setStyle(TableStyle([
+            ("BACKGROUND",    (0, 0), (-1,  0), C_BLACK),
+            ("FONTNAME",      (0, 1), (-1, -1), "Helvetica"),
             ("FONTSIZE",      (0, 0), (-1, -1), 9),
-            ("ROWBACKGROUNDS",(0, 1), (-1, -2), [WHITE, LIGHT_GRAY]),
-            ("BACKGROUND",    (0, -1), (-1, -1), colors.HexColor("#e0e0e0")),
-            ("FONTNAME",      (0, -1), (-1, -1), "Helvetica-Bold"),
-            ("GRID",          (0, 0), (-1, -1),  0.4, RULE_GRAY),
-            ("BOTTOMPADDING", (0, 0), (-1, -1),  5),
-            ("TOPPADDING",    (0, 0), (-1, -1),  4),
-            ("LEFTPADDING",   (0, 0), (-1, -1),  6),
+            ("ROWBACKGROUNDS",(0, 1), (-1, -2), [C_WHITE, C_ROW_ALT]),
+            ("BACKGROUND",    (0, -1),(-1, -1), C_ROW_TOTAL),
+            ("FONTNAME",      (0, -1),(-1, -1), "Helvetica-Bold"),
+            ("GRID",          (0, 0), (-1, -1), 0.4, C_LIGHT_RULE),
+            ("TOPPADDING",    (0, 0), (-1, -1), 5),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+            ("LEFTPADDING",   (0, 0), (-1, -1), 7),
+            ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
         ]))
-        story.append(KeepTogether(t))
+        story.append(KeepTogether(at))
 
-    # ── Predicción IA ────────────────────────────────────────────────────────────
+    # ── Predicción IA ─────────────────────────────────────────────────────────
     prediction = analysis.get("prediction", {})
     if prediction:
-        _section_rule(story, "Predicción de Inteligencia Artificial", s)
+        _section(story, "Predicción de Inteligencia Artificial", st)
 
-        risk     = str(prediction.get("prediction", "")).upper()
-        label_tx = RISK_LABEL.get(risk, risk)
-        prob     = round(float(prediction.get("probability", 0)) * 100)
-        version  = prediction.get("modelVersion", "—")
+        risk    = str(prediction.get("prediction", "")).upper()
+        labels  = {"BENIGNO": "BENIGNO", "SOSPECHOSO": "SOSPECHOSO", "MALIGNO": "MALIGNO"}
+        lbl_tx  = labels.get(risk, risk)
+        prob    = round(float(prediction.get("probability",  0)) * 100)
+        p_ben   = round(float(prediction.get("probBenigno",  0)) * 100)
+        p_sos   = round(float(prediction.get("probSospechoso", 0)) * 100)
+        p_mal   = round(float(prediction.get("probMaligno",  0)) * 100)
+        version = str(prediction.get("modelVersion", "—"))
 
-        pred_rows = [
-            [Paragraph("Resultado", s["label"]),
-             Paragraph("Probabilidad", s["label"]),
-             Paragraph("Versión del modelo", s["label"])],
-            [Paragraph(label_tx, s["risk_big"]),
-             Paragraph(f"{prob}%", s["risk_big"]),
-             Paragraph(str(version), s["value"])],
-        ]
-        pred_table = Table(pred_rows, colWidths=[6 * cm, 4 * cm, 7 * cm])
-        pred_table.setStyle(TableStyle([
-            ("BACKGROUND",    (0, 0), (-1, 0),  BLACK),
-            ("TEXTCOLOR",     (0, 0), (-1, 0),  WHITE),
-            ("FONTNAME",      (0, 0), (-1, 0),  "Helvetica-Bold"),
-            ("FONTSIZE",      (0, 0), (-1, 0),  8),
-            ("BACKGROUND",    (0, 1), (-1, 1),  LIGHT_GRAY),
-            ("GRID",          (0, 0), (-1, -1), 0.4, RULE_GRAY),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
-            ("TOPPADDING",    (0, 0), (-1, -1), 6),
+        # Fila principal: resultado + probabilidad principal
+        def th2(txt):
+            return Paragraph(txt, ParagraphStyle(
+                "PTH", parent=st["sec_hdr"], fontSize=8))
+
+        pred_t = Table(
+            [
+                [th2("Resultado IA"), th2("Probabilidad"), th2("Versión del modelo")],
+                [Paragraph(lbl_tx, st["risk"]),
+                 Paragraph(f"{prob}%", st["pct"]),
+                 Paragraph(version, st["value"])],
+            ],
+            colWidths=[CW * 0.40, CW * 0.25, CW * 0.35],
+        )
+        pred_t.setStyle(TableStyle([
+            ("BACKGROUND",    (0, 0), (-1, 0), C_BLACK),
+            ("BACKGROUND",    (0, 1), (-1, 1), C_ROW_ALT),
+            ("GRID",          (0, 0), (-1, -1), 0.4, C_LIGHT_RULE),
+            ("TOPPADDING",    (0, 0), (-1, -1), 7),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
             ("LEFTPADDING",   (0, 0), (-1, -1), 8),
+            ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
         ]))
-        story.append(pred_table)
+        story.append(pred_t)
 
-        # Distribución de probabilidades
-        story.append(Spacer(1, 0.4 * cm))
-        prob_rows = [
-            [Paragraph("Benigno", s["label"]),
-             Paragraph("Sospechoso", s["label"]),
-             Paragraph("Maligno", s["label"])],
-            [Paragraph(f"{round(float(prediction.get('probBenigno', 0)) * 100)}%", s["value"]),
-             Paragraph(f"{round(float(prediction.get('probSospechoso', 0)) * 100)}%", s["value"]),
-             Paragraph(f"{round(float(prediction.get('probMaligno', 0)) * 100)}%", s["value"])],
-        ]
-        prob_table = Table(prob_rows, colWidths=[5.6 * cm, 5.6 * cm, 5.6 * cm])
-        prob_table.setStyle(TableStyle([
+        # Distribución de probabilidades por clase
+        story.append(Spacer(1, 0.25 * cm))
+        prob_t = Table(
+            [
+                [th2("Benigno"), th2("Sospechoso"), th2("Maligno")],
+                [Paragraph(f"{p_ben}%", st["value"]),
+                 Paragraph(f"{p_sos}%", st["value"]),
+                 Paragraph(f"{p_mal}%", st["value"])],
+            ],
+            colWidths=[CW / 3, CW / 3, CW / 3],
+        )
+        prob_t.setStyle(TableStyle([
+            ("BACKGROUND",    (0, 0), (-1, 0), C_BLACK),
+            ("ROWBACKGROUNDS",(0, 1), (-1, 1), [C_WHITE]),
+            ("GRID",          (0, 0), (-1, -1), 0.4, C_LIGHT_RULE),
             ("ALIGN",         (0, 0), (-1, -1), "CENTER"),
-            ("FONTNAME",      (0, 0), (-1, 0),  "Helvetica"),
-            ("FONTSIZE",      (0, 0), (-1, -1), 9),
-            ("GRID",          (0, 0), (-1, -1), 0.4, RULE_GRAY),
-            ("ROWBACKGROUNDS",(0, 0), (-1, -1), [colors.HexColor("#f8f8f8"), WHITE]),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
             ("TOPPADDING",    (0, 0), (-1, -1), 6),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+            ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
         ]))
-        story.append(prob_table)
+        story.append(prob_t)
 
-    # ── Aviso legal ──────────────────────────────────────────────────────────────
+    # ── Pie de página ─────────────────────────────────────────────────────────
     story.append(Spacer(1, 0.8 * cm))
-    story.append(HRFlowable(width="100%", color=RULE_GRAY, thickness=0.5, spaceAfter=4))
+    story.append(HRFlowable(width="100%", color=C_LIGHT_RULE, thickness=0.5, spaceAfter=4))
     story.append(Paragraph(
-        "AVISO: Este reporte es una herramienta de apoyo clínico generada de forma automática. "
-        "No reemplaza el diagnóstico ni el juicio del médico profesional tratante.",
-        s["footer"],
+        "AVISO IMPORTANTE: Este reporte es una herramienta de apoyo clínico generada de forma automática. "
+        "No sustituye el diagnóstico ni el criterio del médico profesional tratante.",
+        st["footer"],
     ))
     story.append(Paragraph(
-        f"PeleAnálise v1.0  ·  Generado el {datetime.now().strftime('%d/%m/%Y a las %H:%M')}",
-        s["footer"],
+        f"PeleAnálise v1.0  ·  {datetime.now().strftime('%d/%m/%Y  %H:%M  hrs')}",
+        st["footer"],
     ))
 
     doc.build(story)
