@@ -33,7 +33,7 @@ MODEL_CANDIDATES = [
 ]
 
 # ── hiperparámetros ────────────────────────────────────────────────────────────
-IMG_SIZE          = 224
+IMG_SIZE          = 128
 BATCH_SIZE        = 8     # pequeño — dataset pequeño
 EPOCHS_HEAD       = 20    # fase 1: solo head, base congelado
 EPOCHS_FINE       = 25    # fase 2: fine-tune últimas capas del base
@@ -86,7 +86,7 @@ def load_dataset() -> tuple[np.ndarray, np.ndarray]:
         for f in folder.iterdir():
             if f.suffix.lower() not in EXTENSIONS:
                 continue
-            img = cv2.imread(str(f))
+            img = cv2.imdecode(np.fromfile(str(f), dtype=np.uint8), cv2.IMREAD_COLOR)
             if img is None:
                 continue
             img = cv2.resize(img, (IMG_SIZE, IMG_SIZE))
