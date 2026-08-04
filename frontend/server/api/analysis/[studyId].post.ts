@@ -100,12 +100,6 @@ export default defineEventHandler(async (event) => {
     };
     const riskLevel = riskMap[aiResponse.prediccion] ?? "SOSPECHOSO";
 
-    const lesionTypeMap: Record<"BENIGNO" | "SOSPECHOSO" | "MALIGNO", string> = {
-      BENIGNO:    "NEVUS",
-      SOSPECHOSO: "CARCINOMA_BASOCELULAR",
-      MALIGNO:    "MELANOMA",
-    };
-
     await tx.prediction.upsert({
       where:  { analysisId: a.id },
       create: {
@@ -126,7 +120,7 @@ export default defineEventHandler(async (event) => {
 
     await tx.study.update({
       where: { id: studyId },
-      data:  { riskLevel, isProcessed: true, lesionType: lesionTypeMap[riskLevel] },
+      data:  { riskLevel, isProcessed: true },
     });
 
     return a;
