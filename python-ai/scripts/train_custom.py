@@ -105,6 +105,8 @@ def split_stratified(imgs, labels):
     train_idx, val_idx = [], []
     for cls in range(3):
         idx = np.where(labels == cls)[0].copy()
+        if len(idx) == 0:
+            continue
         np.random.shuffle(idx)
         n_val = max(1, int(len(idx) * VAL_SPLIT))
         val_idx.extend(idx[:n_val])
@@ -123,6 +125,8 @@ def oversample(imgs, labels) -> tuple[np.ndarray, np.ndarray]:
 
     for cls in range(3):
         idx  = np.where(labels == cls)[0]
+        if len(idx) == 0:
+            continue
         need = max(0, target - counts[cls])
         if need == 0:
             continue
