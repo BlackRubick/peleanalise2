@@ -37,15 +37,15 @@ def _make_styles():
         return ParagraphStyle(name, parent=b["Normal"], **kw)
 
     return {
-        "title":    ps("T",  fontName="Helvetica-Bold",  fontSize=20, textColor=C_BLACK, spaceAfter=1),
-        "subtitle": ps("Su", fontName="Helvetica",       fontSize=9,  textColor=C_MID,   spaceAfter=0),
-        "sec_hdr":  ps("SH", fontName="Helvetica-Bold",  fontSize=9,  textColor=C_WHITE),
-        "label":    ps("L",  fontName="Helvetica",       fontSize=8,  textColor=C_MID),
-        "value":    ps("V",  fontName="Helvetica-Bold",  fontSize=9,  textColor=C_DARK),
-        "normal":   ps("N",  fontName="Helvetica",       fontSize=9,  textColor=C_DARK),
-        "risk":     ps("R",  fontName="Helvetica-Bold",  fontSize=18, textColor=C_BLACK),
-        "pct":      ps("P",  fontName="Helvetica-Bold",  fontSize=13, textColor=C_DARK),
-        "footer":   ps("F",  fontName="Helvetica",       fontSize=7,  textColor=C_MID),
+        "title":    ps("T",  fontName="Helvetica-Bold",  fontSize=20, leading=26, textColor=C_BLACK, spaceAfter=4),
+        "subtitle": ps("Su", fontName="Helvetica",       fontSize=9,  leading=13, textColor=C_MID,   spaceAfter=4),
+        "sec_hdr":  ps("SH", fontName="Helvetica-Bold",  fontSize=9,  leading=13, textColor=C_WHITE),
+        "label":    ps("L",  fontName="Helvetica",       fontSize=8,  leading=11, textColor=C_MID),
+        "value":    ps("V",  fontName="Helvetica-Bold",  fontSize=9,  leading=13, textColor=C_DARK),
+        "normal":   ps("N",  fontName="Helvetica",       fontSize=9,  leading=13, textColor=C_DARK),
+        "risk":     ps("R",  fontName="Helvetica-Bold",  fontSize=18, leading=24, textColor=C_BLACK),
+        "pct":      ps("P",  fontName="Helvetica-Bold",  fontSize=13, leading=18, textColor=C_DARK),
+        "footer":   ps("F",  fontName="Helvetica",       fontSize=7,  leading=10, textColor=C_MID),
     }
 
 
