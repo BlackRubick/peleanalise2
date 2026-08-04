@@ -39,8 +39,8 @@ MODEL_OUT = BASE_DIR / "models" / "melanoma_classifier.keras"
 MODEL_OUT.parent.mkdir(parents=True, exist_ok=True)
 
 # ── hiperparámetros ────────────────────────────────────────────────────────────
-IMG_SIZE      = 224
-BATCH_SIZE    = 16
+IMG_SIZE      = 128  # reducido de 224 para menor uso de RAM (~3x menos memoria)
+BATCH_SIZE    = 8    # reducido de 16 para menor uso de RAM
 EPOCHS_HEAD   = 8    # fase 1: solo head, base congelado
 EPOCHS_FINE1  = 12   # fase 2: últimas 50 capas descongeladas
 EPOCHS_FINE2  = 8    # fase 3: todo descongelado, LR muy baja
@@ -74,7 +74,7 @@ def load_split(split: str):
 def oversample_minorities(imgs: np.ndarray, labels: np.ndarray) -> tuple:
     """Replica Sospechoso y Maligno para reducir desequilibrio."""
     counts   = [np.sum(labels == c) for c in range(3)]
-    target   = max(counts[1], counts[2]) * 3   # objetivo para clases minoritarias
+    target   = max(counts[1], counts[2]) * 2   # reducido de *3 para menor uso de RAM
     all_imgs, all_labels = [imgs], [labels]
 
     for cls in [1, 2]:           # Sospechoso y Maligno
@@ -193,7 +193,7 @@ def print_confusion(y_true, y_pred):
 def train():
     print("\n" + "="*62)
     print("  PeleAnálise — Entrenamiento de Clasificador Dermatológico")
-    print("  Modelo: EfficientNetB3  |  Dataset: DermaMNIST 224×224")
+    print("  Modelo: EfficientNetB3  |  Dataset: DermaMNIST 128×128")
     print("  Clases: Benigno · Sospechoso · Maligno")
     print("="*62 + "\n")
 
