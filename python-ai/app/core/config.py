@@ -6,7 +6,7 @@ class Settings(BaseSettings):
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = False
 
-    MODEL_PATH: str = "models/melanoma_classifier.keras"
+    MODEL_PATH: str = "models/melanoma_classifier_phase3.keras"
     MODEL_VERSION: str = "1.0.0"
     IMG_SIZE: int = 128
 
