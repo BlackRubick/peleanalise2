@@ -8,7 +8,7 @@ class Settings(BaseSettings):
 
     MODEL_PATH: str = "models/melanoma_classifier.keras"
     MODEL_VERSION: str = "1.0.0"
-    IMG_SIZE: int = 224
+    IMG_SIZE: int = 128
 
     # MinIO / S3 (for saving processed images)
     MINIO_ENDPOINT: str = "localhost:9000"
