@@ -355,9 +355,9 @@ const riskLevel = computed(() => study.value?.riskLevel ?? '')
 
 const predictionLabel = computed(() => {
   const map: Record<string, string> = {
-    BENIGNO:    'Nevus',
-    SOSPECHOSO: 'Carcinoma Basocelular',
-    MALIGNO:    'Melanoma',
+    BENIGNO:    'Benigno',
+    SOSPECHOSO: 'Sospechoso',
+    MALIGNO:    'Maligno',
   }
   return map[riskLevel.value] ?? riskLevel.value
 })
