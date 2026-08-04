@@ -36,11 +36,11 @@ async def analyze(req: AnalyzeRequest):
     ppm   = req.pixel_per_mm or settings.PIXEL_PER_MM
     abcde = compute_abcde(processed["original"], processed["mask"], pixel_per_mm=ppm)
 
-    # 4. AI prediction
-    result = predict(processed["cleaned"])
+    # 4. AI prediction — usar imagen original (el modelo fue entrenado sin preprocesar)
+    result = predict(processed["original"])
 
     # 5. Grad-CAM
-    gradcam_img = generate_gradcam(processed["cleaned"])
+    gradcam_img = generate_gradcam(processed["original"])
 
     # 6. (Optional) save processed images
     processed_images = ProcessedImages()
